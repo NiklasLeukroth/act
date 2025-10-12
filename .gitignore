@@ -8,6 +8,8 @@ data_local
 _wandb
 
 **/.DS_Store
+**/ckpt/
+**/dataset/
 
 fuse.cfg
 

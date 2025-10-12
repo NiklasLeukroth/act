@@ -34,20 +34,21 @@ def main(args):
     num_epochs = args['num_epochs']
 
     # get task parameters
-    is_sim = task_name[:4] == 'sim_'
-    if is_sim:
-        from constants import SIM_TASK_CONFIGS
-        task_config = SIM_TASK_CONFIGS[task_name]
-    else:
-        from aloha_scripts.constants import TASK_CONFIGS
-        task_config = TASK_CONFIGS[task_name]
-    dataset_dir = task_config['dataset_dir']
-    num_episodes = task_config['num_episodes']
-    episode_len = task_config['episode_len']
-    camera_names = task_config['camera_names']
+    # is_sim = task_name[:4] == 'sim_'
+    is_sim = False
+    # if is_sim:
+    #     from constants import SIM_TASK_CONFIGS
+    #     task_config = SIM_TASK_CONFIGS[task_name]
+    # else:
+    #     from aloha_scripts.constants import TASK_CONFIGS
+    #     task_config = TASK_CONFIGS[task_name]
+    dataset_dir = "./dataset"
+    num_episodes = 2
+    episode_len = 100
+    camera_names = ["realsense_image_raw"]
 
     # fixed parameters
-    state_dim = 14
+    state_dim = 25
     lr_backbone = 1e-5
     backbone = 'resnet18'
     if policy_class == 'ACT':

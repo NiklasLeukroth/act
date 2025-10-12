@@ -10,8 +10,8 @@ from constants import DT
 import IPython
 e = IPython.embed
 
-JOINT_NAMES = ["waist", "shoulder", "elbow", "forearm_roll", "wrist_angle", "wrist_rotate"]
-STATE_NAMES = JOINT_NAMES + ["gripper"]
+# JOINT_NAMES = ["waist", "shoulder", "elbow", "forearm_roll", "wrist_angle", "wrist_rotate"]
+# STATE_NAMES = JOINT_NAMES + ["gripper"]
 
 def load_hdf5(dataset_dir, dataset_name):
     dataset_path = os.path.join(dataset_dir, dataset_name + '.hdf5')
@@ -20,7 +20,8 @@ def load_hdf5(dataset_dir, dataset_name):
         exit()
 
     with h5py.File(dataset_path, 'r') as root:
-        is_sim = root.attrs['sim']
+        # is_sim = root.attrs['sim']
+        is_sim = False
         qpos = root['/observations/qpos'][()]
         qvel = root['/observations/qvel'][()]
         action = root['/action'][()]
@@ -90,11 +91,11 @@ def visualize_joints(qpos_list, command_list, plot_path=None, ylim=None, label_o
     fig, axs = plt.subplots(num_figs, 1, figsize=(w, h * num_figs))
 
     # plot joint state
-    all_names = [name + '_left' for name in STATE_NAMES] + [name + '_right' for name in STATE_NAMES]
+    # all_names = [name + '_left' for name in STATE_NAMES] + [name + '_right' for name in STATE_NAMES]
     for dim_idx in range(num_dim):
         ax = axs[dim_idx]
         ax.plot(qpos[:, dim_idx], label=label1)
-        ax.set_title(f'Joint {dim_idx}: {all_names[dim_idx]}')
+        ax.set_title(f'Joint {dim_idx}')
         ax.legend()
 
     # plot arm command
