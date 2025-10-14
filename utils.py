@@ -77,7 +77,7 @@ class EpisodicDataset(torch.utils.data.Dataset):
         return image_data, qpos_data, action_data, is_pad
 
 
-def get_norm_stats(dataset_dir, num_episodes):
+def get_norm_stats(dataset_dir, num_episodes, episode_length):
     all_qpos_data = []
     all_action_data = []
     for episode_idx in range(num_episodes):
@@ -86,8 +86,8 @@ def get_norm_stats(dataset_dir, num_episodes):
             qpos = root['/observations/qpos'][()]
             qvel = root['/observations/qvel'][()]
             action = root['/action'][()]
-        all_qpos_data.append(torch.from_numpy(qpos))
-        all_action_data.append(torch.from_numpy(action))
+        all_qpos_data.append(torch.from_numpy(qpos[:episode_length, :]))
+        all_action_data.append(torch.from_numpy(action[:episode_length, :]))
     all_qpos_data = torch.stack(all_qpos_data)
     all_action_data = torch.stack(all_action_data)
     all_action_data = all_action_data
@@ -109,7 +109,7 @@ def get_norm_stats(dataset_dir, num_episodes):
     return stats
 
 
-def load_data(dataset_dir, num_episodes, camera_names, batch_size_train, batch_size_val):
+def load_data(dataset_dir, num_episodes, camera_names, batch_size_train, batch_size_val, episode_length):
     print(f'\nData from: {dataset_dir}\n')
     # obtain train test split
     train_ratio = 0.8
@@ -118,7 +118,7 @@ def load_data(dataset_dir, num_episodes, camera_names, batch_size_train, batch_s
     val_indices = shuffled_indices[int(train_ratio * num_episodes):]
 
     # obtain normalization stats for qpos and action
-    norm_stats = get_norm_stats(dataset_dir, num_episodes)
+    norm_stats = get_norm_stats(dataset_dir, num_episodes, episode_length)
 
     # construct dataset and dataloader
     train_dataset = EpisodicDataset(train_indices, dataset_dir, camera_names, norm_stats)

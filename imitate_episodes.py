@@ -45,7 +45,7 @@ def main(args):
     dataset_dir = "./dataset"
     num_episodes = 2
     episode_len = 100
-    camera_names = ["realsense_image_raw"]
+    camera_names = ["realsense_image_raw", "realsense_image_depth"]
 
     # fixed parameters
     state_dim = 25
@@ -101,7 +101,7 @@ def main(args):
         print()
         exit()
 
-    train_dataloader, val_dataloader, stats, _ = load_data(dataset_dir, num_episodes, camera_names, batch_size_train, batch_size_val)
+    train_dataloader, val_dataloader, stats, _ = load_data(dataset_dir, num_episodes, camera_names, batch_size_train, batch_size_val, episode_len)
 
     # save dataset stats
     if not os.path.isdir(ckpt_dir):
