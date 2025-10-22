@@ -8,12 +8,13 @@ import IPython
 e = IPython.embed
 
 class EpisodicDataset(torch.utils.data.Dataset):
-    def __init__(self, episode_ids, dataset_dir, camera_names, norm_stats):
+    def __init__(self, episode_ids, dataset_dir, camera_names, norm_stats, episode_len):
         super(EpisodicDataset).__init__()
         self.episode_ids = episode_ids
         self.dataset_dir = dataset_dir
         self.camera_names = camera_names
         self.norm_stats = norm_stats
+        self.episode_len = episode_len
         self.is_sim = None
         self.__getitem__(0) # initialize self.is_sim
 
@@ -28,12 +29,11 @@ class EpisodicDataset(torch.utils.data.Dataset):
         with h5py.File(dataset_path, 'r') as root:
             # is_sim = root.attrs['sim']
             is_sim = False
-            original_action_shape = root['/action'].shape
-            episode_len = original_action_shape[0]
+            original_action_shape = (self.episode_len, 25)
             if sample_full_episode:
                 start_ts = 0
             else:
-                start_ts = np.random.choice(episode_len)
+                start_ts = np.random.choice(self.episode_len)
             # get observation at start_ts only
             qpos = root['/observations/qpos'][start_ts]
             qvel = root['/observations/qvel'][start_ts]
@@ -43,15 +43,15 @@ class EpisodicDataset(torch.utils.data.Dataset):
             # get all actions after and including start_ts
             if is_sim:
                 action = root['/action'][start_ts:]
-                action_len = episode_len - start_ts
+                action_len = self.episode_len - start_ts
             else:
-                action = root['/action'][max(0, start_ts - 1):] # hack, to make timesteps more aligned
-                action_len = episode_len - max(0, start_ts - 1) # hack, to make timesteps more aligned
+                action = root['/action'][max(0, start_ts - 1):self.episode_len] # hack, to make timesteps more aligned
+                action_len = self.episode_len - max(0, start_ts - 1) # hack, to make timesteps more aligned
 
         self.is_sim = is_sim
         padded_action = np.zeros(original_action_shape, dtype=np.float32)
         padded_action[:action_len] = action
-        is_pad = np.zeros(episode_len)
+        is_pad = np.zeros(self.episode_len)
         is_pad[action_len:] = 1
 
         # new axis for different cameras
@@ -119,10 +119,14 @@ def load_data(dataset_dir, num_episodes, camera_names, batch_size_train, batch_s
 
     # obtain normalization stats for qpos and action
     norm_stats = get_norm_stats(dataset_dir, num_episodes, episode_length)
+    print(norm_stats["example_qpos"].size)
+    # for key, value in norm_stats.items():
+    #     if 
+    #     print(f"{key}: {value.size}")
 
     # construct dataset and dataloader
-    train_dataset = EpisodicDataset(train_indices, dataset_dir, camera_names, norm_stats)
-    val_dataset = EpisodicDataset(val_indices, dataset_dir, camera_names, norm_stats)
+    train_dataset = EpisodicDataset(train_indices, dataset_dir, camera_names, norm_stats, episode_length)
+    val_dataset = EpisodicDataset(val_indices, dataset_dir, camera_names, norm_stats, episode_length)
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size_train, shuffle=True, pin_memory=True, num_workers=1, prefetch_factor=1)
     val_dataloader = DataLoader(val_dataset, batch_size=batch_size_val, shuffle=True, pin_memory=True, num_workers=1, prefetch_factor=1)
 

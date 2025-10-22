@@ -43,9 +43,9 @@ def main(args):
     #     from aloha_scripts.constants import TASK_CONFIGS
     #     task_config = TASK_CONFIGS[task_name]
     dataset_dir = "./dataset"
-    num_episodes = 2
-    episode_len = 100
-    camera_names = ["realsense_image_raw", "realsense_image_depth"]
+    num_episodes = 70
+    episode_len = 130
+    camera_names = ["realsense_image_raw", "realsense_image_depth", "digit360_image_0", "digit_rgb_image_0", "digit_rgb_image_1", "digit_rgb_image_2"]
 
     # fixed parameters
     state_dim = 25
@@ -180,9 +180,10 @@ def eval_bc(config, ckpt_name, save_episode=True):
 
     # load environment
     if real_robot:
-        from aloha_scripts.robot_utils import move_grippers # requires aloha
-        from aloha_scripts.real_env import make_real_env # requires aloha
-        env = make_real_env(init_node=True)
+        # from aloha_scripts.robot_utils import move_grippers # requires aloha
+        # from act.environment import move_robot
+        from act.environment import make_real_env # requires aloha
+        env = make_real_env()
         env_max_reward = 0
     else:
         from sim_env import make_sim_env
@@ -234,6 +235,8 @@ def eval_bc(config, ckpt_name, save_episode=True):
 
                 ### process previous timestep to get qpos and image_list
                 obs = ts.observation
+                if obs is None:
+                    continue
                 if 'images' in obs:
                     image_list.append(obs['images'])
                 else:
@@ -243,6 +246,7 @@ def eval_bc(config, ckpt_name, save_episode=True):
                 qpos = torch.from_numpy(qpos).float().cuda().unsqueeze(0)
                 qpos_history[:, t] = qpos
                 curr_image = get_image(ts, camera_names)
+
 
                 ### query policy
                 if config['policy_class'] == "ACT":
@@ -280,9 +284,10 @@ def eval_bc(config, ckpt_name, save_episode=True):
 
             plt.close()
         if real_robot:
-            move_grippers([env.puppet_bot_left, env.puppet_bot_right], [PUPPET_GRIPPER_JOINT_OPEN] * 2, move_time=0.5)  # open
+            # move_robot(env., None, move_time = 0.5)
             pass
-
+        if len(rewards) == 0:
+            rewards.append(0)
         rewards = np.array(rewards)
         episode_return = np.sum(rewards[rewards!=None])
         episode_returns.append(episode_return)
@@ -290,8 +295,8 @@ def eval_bc(config, ckpt_name, save_episode=True):
         highest_rewards.append(episode_highest_reward)
         print(f'Rollout {rollout_id}\n{episode_return=}, {episode_highest_reward=}, {env_max_reward=}, Success: {episode_highest_reward==env_max_reward}')
 
-        if save_episode:
-            save_videos(image_list, DT, video_path=os.path.join(ckpt_dir, f'video{rollout_id}.mp4'))
+        # if save_episode:
+        #     save_videos(image_list, DT, video_path=os.path.join(ckpt_dir, f'video{rollout_id}.mp4'))
 
     success_rate = np.mean(np.array(highest_rewards) == env_max_reward)
     avg_return = np.mean(episode_returns)

@@ -2,6 +2,8 @@
 """
 Backbone modules.
 """
+import sys
+sys.path.append("/home/niklas/master_ws/src/act/src/detr")
 from collections import OrderedDict
 
 import torch
