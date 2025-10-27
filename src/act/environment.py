@@ -50,6 +50,7 @@ class RealEnv:
         # self.arm_command = D()
         # self.hand_command = E()
         self.DT = 0.02
+        rclpy.spin(self.node)
 
     def get_qpos(self):
         arm_pos = self.robot_arm_recorder.get_qpos()

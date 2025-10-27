@@ -1,9 +1,13 @@
 import rclpy
 import numpy as np
+from PIL import Image as PIL_IMAGE
 
 from sensor_msgs.msg import Image, JointState, CompressedImage
 
 # from xarm_msgs.msg import RobotMsg
+
+glob_height = 848
+glob_width = 480
 
 class IntelRealSense():
     rgb_image = np.zeros((480, 848, 3))
@@ -30,10 +34,22 @@ class IntelRealSense():
         return image_dict
     
     def cb_image_raw(self, msg):
-        self.rgb_image = msg.data
+        rgb_array = np.frombuffer(msg.data, dtype=np.uint8).reshape((msg.height, msg.width, 3))
+        img = PIL_IMAGE.fromarray(rgb_array, 'RGB')
+        resized_image = img.resize((glob_height, glob_width))
+        self.rgb_image = np.array(resized_image)
 
     def cb_image_depth(self, msg):
-        self.depth_image = msg.data
+        rgb_array = np.frombuffer(msg.data, dtype=np.uint16).reshape((msg.height, msg.width, 1))
+        rgb_list = rgb_array.tolist()
+        for i in range(len(rgb_list)):
+            for j in range(len(rgb_list[i])):
+                rgb_list[i][j].append(rgb_list[i][j][0])
+                rgb_list[i][j].append(rgb_list[i][j][0])
+
+        rgb_array = np.array(rgb_list)
+        self.depth_image = rgb_array
+
 
 class Digit360():
     rgb_image = np.zeros((480, 848, 3))
@@ -52,7 +68,10 @@ class Digit360():
         return image_dict
     
     def cb_image_raw(self, msg):
-        self.rgb_image = msg.data
+        rgb_array = np.frombuffer(msg.data, dtype=np.uint8).reshape((msg.height, msg.width, 3))
+        img = PIL_IMAGE.fromarray(rgb_array, 'RGB')
+        resized_image = img.resize((glob_height, glob_width))
+        self.rgb_image = np.array(resized_image)
 
 
 class Digit():
