@@ -2,9 +2,7 @@ import rclpy
 import numpy as np
 from PIL import Image as PIL_IMAGE
 
-from sensor_msgs.msg import Image, JointState, CompressedImage
-
-# from xarm_msgs.msg import RobotMsg
+from sensor_msgs.msg import Image, JointState
 
 glob_height = 848
 glob_width = 480
@@ -82,19 +80,19 @@ class Digit():
     def __init__(self, node):
         self.node = node
         self.subscription_rgb_0 = self.node.create_subscription(
-            CompressedImage,
+            Image,
             '/digit_rgb/index_0',
             self.cb_image_raw_0,
             3)
         
         self.subscription_rgb_1 = self.node.create_subscription(
-            CompressedImage,
+            Image,
             '/digit_rgb/index_1',
             self.cb_image_raw_1,
             3)
         
         self.subscription_rgb_2 = self.node.create_subscription(
-            CompressedImage,
+            Image,
             '/digit_rgb/index_2',
             self.cb_image_raw_2,
             3)
@@ -107,13 +105,23 @@ class Digit():
         return image_dict
     
     def cb_image_raw_0(self, msg):
-        self.rgb_image_0 = msg.data
+        rgb_array = np.frombuffer(msg.data, dtype=np.uint8).reshape((msg.height, msg.width, 3))
+        img = PIL_IMAGE.fromarray(rgb_array, 'RGB')
+        resized_image = img.resize((glob_height, glob_width))
+        self.rgb_image_0 = np.array(resized_image)
 
     def cb_image_raw_1(self, msg):
-        self.rgb_image_1 = msg.data
+        rgb_array = np.frombuffer(msg.data, dtype=np.uint8).reshape((msg.height, msg.width, 3))
+        img = PIL_IMAGE.fromarray(rgb_array, 'RGB')
+        resized_image = img.resize((glob_height, glob_width))
+        self.rgb_image_1 = np.array(resized_image)
 
     def cb_image_raw_2(self, msg):
-        self.rgb_image_2 = msg.data
+        rgb_array = np.frombuffer(msg.data, dtype=np.uint8).reshape((msg.height, msg.width, 3))
+        img = PIL_IMAGE.fromarray(rgb_array, 'RGB')
+        resized_image = img.resize((glob_height, glob_width))
+        self.rgb_image_2 = np.array(resized_image)
+
 
 class XArm():
     position = None
@@ -122,11 +130,11 @@ class XArm():
 
     def __init__(self, node):
         self.node = node
-        # self.subscription_robot_states = self.node.create_subscription(
-        #     RobotMsg,
-        #     '/xarm/robot_states',
-        #     self.cb_robot_states,
-        #     3)
+        self.subscription_robot_states = self.node.create_subscription(
+            JointState,
+            '/xarm/joint_states',
+            self.cb_robot_states,
+            3)
 
     def get_effort(self):
         return self.effort
@@ -141,6 +149,7 @@ class XArm():
         self.position = msg.position
         self.velocity = msg.velocity
         self.effort = msg.effort
+        print(self.effort)
 
 
 class Tilburg():
