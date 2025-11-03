@@ -1,4 +1,5 @@
 import torch
+import rclpy
 import numpy as np
 import os
 import pickle
@@ -20,6 +21,7 @@ from sim_env import BOX_POSE
 
 import IPython
 e = IPython.embed
+node = None
 
 def main(args):
     set_seed(1)
@@ -183,13 +185,14 @@ def eval_bc(config, ckpt_name, save_episode=True):
         # from aloha_scripts.robot_utils import move_grippers # requires aloha
         # from act.environment import move_robot
         from act.environment import make_real_env # requires aloha
-        env = make_real_env()
+        rclpy.init()
+        node = rclpy.create_node("act_eval_node")
+        env = make_real_env(node)
         env_max_reward = 0
     else:
         from sim_env import make_sim_env
         env = make_sim_env(task_name)
         env_max_reward = env.task.max_reward
-
     query_frequency = policy_config['num_queries']
     if temporal_agg:
         query_frequency = 1
@@ -294,6 +297,7 @@ def eval_bc(config, ckpt_name, save_episode=True):
         episode_highest_reward = np.max(rewards)
         highest_rewards.append(episode_highest_reward)
         print(f'Rollout {rollout_id}\n{episode_return=}, {episode_highest_reward=}, {env_max_reward=}, Success: {episode_highest_reward==env_max_reward}')
+        rclpy.spin_once(node)
 
         # if save_episode:
         #     save_videos(image_list, DT, video_path=os.path.join(ckpt_dir, f'video{rollout_id}.mp4'))

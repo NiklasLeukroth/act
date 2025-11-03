@@ -9,7 +9,9 @@ sys.path.append("/home/niklas/master_ws/src/act/src/act")
 
 from robot_utils import XArm, Tilburg, IntelRealSense, Digit360, Digit
 
-from std_msgs.msg import Int32
+from std_msgs.msg import Int32, Float64MultiArray
+
+from tud_control_msgs.msg import XArmCommand
 
 import IPython
 e = IPython.embed
@@ -37,9 +39,8 @@ class RealEnv:
                                    "cam_right_wrist": (480x640x3)} # h, w, c, dtype='uint8'
     """
 
-    def __init__(self):
-        rclpy.init()
-        self.node = rclpy.create_node("act_eval_node")
+    def __init__(self, node):
+        self.node = node
         self.robot_arm_recorder = XArm(self.node)
         self.robot_hand_recorder = Tilburg(self.node)
 
@@ -47,20 +48,19 @@ class RealEnv:
         self.digit_360_recorder = Digit360(self.node)
         self.digit_recorder = Digit(self.node)
         self.example_pub = self.node.create_publisher(Int32, 'topic', 10)
-        # self.arm_command = D()
-        # self.hand_command = E()
         self.DT = 0.02
-        rclpy.spin(self.node)
+        self.hand_publisher = self.node.create_publisher(Float64MultiArray, "/th_right/joint_targets", 10)
+        self.arm_publisher = self.node.create_publisher(XArmCommand, "/xarm/command", 10)
 
     def get_qpos(self):
         arm_pos = self.robot_arm_recorder.get_qpos()
         hand_pos = self.robot_hand_recorder.get_qpos()
-        out = hand_pos if hand_pos is not None else [0.0 for i in range(16)]
+        out = hand_pos[:16] if hand_pos is not None else [0.0 for i in range(16)]
         if arm_pos is None:
             for i in range(9):
                 out.append(0.0)
         else:
-            out += arm_pos
+            out += arm_pos[:7]
             out.append(0.0)
             out.append(0.0)
 
@@ -102,12 +102,22 @@ class RealEnv:
         return out
 
     def _move_hand(self, desired_action):
-        pass
+        out = Float64MultiArray()
+        out.data = desired_action
+        self.hand_publisher.publish(out)
 
     def _move_arm(self, desired_action):
-        out = Int32()
-        out.data = 0
-        self.example_pub.publish(out)
+        out = XArmCommand()
+        out.pos_x = desired_action[0]
+        out.pos_y = desired_action[1]
+        out.pos_z = desired_action[2]
+        out.rot_x = desired_action[3]
+        out.rot_y = desired_action[4]
+        out.rot_z = desired_action[5]
+        out.speed = desired_action[6]
+        out.acc = desired_action[7]
+        out.mvtime = desired_action[8]
+        self.arm_publisher.publish(out)
 
     def _reset_arm(self):
         # Implement resetting the arm here
@@ -145,8 +155,8 @@ class RealEnv:
 
     def step(self, action):
         # Implement moving the robot here
-        self._move_arm(None)
-        self._move_hand(None)
+        self._move_hand(action[:16])
+        self._move_arm(action[16:])
 
         time.sleep(self.DT)
         return dm_env.TimeStep(
@@ -159,8 +169,8 @@ def get_action():
     # Not needed I think
     return None
 
-def make_real_env():
-    env = RealEnv()
+def make_real_env(node):
+    env = RealEnv(node)
     return env
 
 def test_real_teleop():

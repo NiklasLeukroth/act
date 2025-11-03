@@ -8,8 +8,8 @@ glob_height = 848
 glob_width = 480
 
 class IntelRealSense():
-    rgb_image = np.zeros((480, 848, 3))
-    depth_image = np.zeros((480, 848, 3))
+    rgb_image = np.zeros((glob_width, glob_height, 3))
+    depth_image = np.zeros((glob_width, glob_height, 3))
 
     def __init__(self, node):
         self.node = node
@@ -46,11 +46,13 @@ class IntelRealSense():
                 rgb_list[i][j].append(rgb_list[i][j][0])
 
         rgb_array = np.array(rgb_list)
-        self.depth_image = rgb_array
+        img = PIL_IMAGE.fromarray(rgb_array, 'RGB')
+        resized_image = img.resize((glob_height, glob_width))
+        self.depth_image = np.array(resized_image)
 
 
 class Digit360():
-    rgb_image = np.zeros((480, 848, 3))
+    rgb_image = np.zeros((glob_width, glob_height, 3))
 
     def __init__(self, node):
         self.node = node
@@ -59,6 +61,7 @@ class Digit360():
             '/image_raw/index_0',
             self.cb_image_raw,
             3)
+        self.rgb_image = load_image_and_resize("/home/niklas/master_ws/src/act/src/image_fake/d360.png")
 
     def get_images(self):
         image_dict = dict()
@@ -73,9 +76,9 @@ class Digit360():
 
 
 class Digit():
-    rgb_image_0 = np.zeros((480, 848, 3))
-    rgb_image_1 = np.zeros((480, 848, 3))
-    rgb_image_2 = np.zeros((480, 848, 3))
+    rgb_image_0 = np.zeros((glob_width, glob_height, 3))
+    rgb_image_1 = np.zeros((glob_width, glob_height, 3))
+    rgb_image_2 = np.zeros((glob_width, glob_height, 3))
 
     def __init__(self, node):
         self.node = node
@@ -96,6 +99,11 @@ class Digit():
             '/digit_rgb/index_2',
             self.cb_image_raw_2,
             3)
+        
+        self.rgb_image_0 = load_image_and_resize("/home/niklas/master_ws/src/act/src/image_fake/digit0.png")
+        self.rgb_image_1 = load_image_and_resize("/home/niklas/master_ws/src/act/src/image_fake/digit1.png")
+        self.rgb_image_2 = load_image_and_resize("/home/niklas/master_ws/src/act/src/image_fake/digit2.png")
+
 
     def get_images(self):
         image_dict = dict()
@@ -149,7 +157,6 @@ class XArm():
         self.position = msg.position
         self.velocity = msg.velocity
         self.effort = msg.effort
-        print(self.effort)
 
 
 class Tilburg():
@@ -178,3 +185,9 @@ class Tilburg():
         self.position = msg.position
         self.velocity = msg.velocity
         self.effort = msg.effort
+
+
+def load_image_and_resize(path) -> np.array:
+    image = PIL_IMAGE.open(path)
+    resized_image = image.resize((glob_height, glob_width))
+    return np.array(resized_image)
