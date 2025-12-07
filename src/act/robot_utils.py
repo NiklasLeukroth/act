@@ -79,6 +79,7 @@ class Digit():
     rgb_image_0 = np.zeros((glob_width, glob_height, 3))
     rgb_image_1 = np.zeros((glob_width, glob_height, 3))
     rgb_image_2 = np.zeros((glob_width, glob_height, 3))
+    rgb_image_3 = np.zeros((glob_width, glob_height, 3))
 
     def __init__(self, node):
         self.node = node
@@ -100,9 +101,16 @@ class Digit():
             self.cb_image_raw_2,
             3)
         
+        self.subscription_rgb_3 = self.node.create_subscription(
+            Image,
+            '/digit_rgb/index_3',
+            self.cb_image_raw_3,
+            3)
+        
         self.rgb_image_0 = load_image_and_resize("/home/niklas/master_ws/src/act/src/image_fake/digit0.png")
         self.rgb_image_1 = load_image_and_resize("/home/niklas/master_ws/src/act/src/image_fake/digit1.png")
         self.rgb_image_2 = load_image_and_resize("/home/niklas/master_ws/src/act/src/image_fake/digit2.png")
+        self.rgb_image_3 = load_image_and_resize("/home/niklas/master_ws/src/act/src/image_fake/digit3.png")
 
 
     def get_images(self):
@@ -110,6 +118,7 @@ class Digit():
         image_dict["digit_rgb_image_0"] = self.rgb_image_0
         image_dict["digit_rgb_image_1"] = self.rgb_image_1
         image_dict["digit_rgb_image_2"] = self.rgb_image_2
+        image_dict["digit_rgb_image_3"] = self.rgb_image_3
         return image_dict
     
     def cb_image_raw_0(self, msg):
@@ -129,6 +138,12 @@ class Digit():
         img = PIL_IMAGE.fromarray(rgb_array, 'RGB')
         resized_image = img.resize((glob_height, glob_width))
         self.rgb_image_2 = np.array(resized_image)
+    
+    def cb_image_raw_3(self, msg):
+        rgb_array = np.frombuffer(msg.data, dtype=np.uint8).reshape((msg.height, msg.width, 3))
+        img = PIL_IMAGE.fromarray(rgb_array, 'RGB')
+        resized_image = img.resize((glob_height, glob_width))
+        self.rgb_image_3 = np.array(resized_image)
 
 
 class XArm():

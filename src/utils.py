@@ -20,33 +20,30 @@ class EpisodicDataset(torch.utils.data.Dataset):
 
     def __len__(self):
         return len(self.episode_ids)
+    
+    def stupid(self, dataset_path, sample_full_episode):
+        try:
+            is_sim, original_action_shape, action_len, action, image_dict, qpos = self.loadblub(dataset_path, sample_full_episode)
+            return is_sim, original_action_shape, action_len, action, image_dict, qpos, True
+        except Exception as e:
+            self.checkSSD(dataset_path)
+            return None, None, None, None, None, None, False
 
     def __getitem__(self, index):
         sample_full_episode = False # hardcode
 
         episode_id = self.episode_ids[index]
         dataset_path = os.path.join(self.dataset_dir, f'episode_{episode_id}.hdf5')
-        with h5py.File(dataset_path, 'r') as root:
-            # is_sim = root.attrs['sim']
-            is_sim = False
-            original_action_shape = (self.episode_len, 25)
-            if sample_full_episode:
-                start_ts = 0
-            else:
-                start_ts = np.random.choice(self.episode_len)
-            # get observation at start_ts only
-            qpos = root['/observations/qpos'][start_ts]
-            qvel = root['/observations/qvel'][start_ts]
-            image_dict = dict()
-            for cam_name in self.camera_names:
-                image_dict[cam_name] = root[f'/observations/images/{cam_name}'][start_ts]
-            # get all actions after and including start_ts
-            if is_sim:
-                action = root['/action'][start_ts:]
-                action_len = self.episode_len - start_ts
-            else:
-                action = root['/action'][max(0, start_ts - 1):self.episode_len] # hack, to make timesteps more aligned
-                action_len = self.episode_len - max(0, start_ts - 1) # hack, to make timesteps more aligned
+        is_sim = None
+        original_action_shape = None
+        action_len = None
+        action = None
+        qpos = None
+        image_dict = None
+        
+        is_sim, original_action_shape, action_len, action, image_dict, qpos, worked = self.stupid(dataset_path, sample_full_episode)
+        while(not worked):
+            is_sim, original_action_shape, action_len, action, image_dict, qpos, worked = self.stupid(dataset_path, sample_full_episode)
 
         self.is_sim = is_sim
         padded_action = np.zeros(original_action_shape, dtype=np.float32)
@@ -75,6 +72,44 @@ class EpisodicDataset(torch.utils.data.Dataset):
         qpos_data = (qpos_data - self.norm_stats["qpos_mean"]) / self.norm_stats["qpos_std"]
 
         return image_data, qpos_data, action_data, is_pad
+    
+    def loadblub(self, dataset_path, sample_full_episode):
+        self.checkSSD(dataset_path)
+        with h5py.File(dataset_path, 'r') as root:
+                    # is_sim = root.attrs['sim']
+                    is_sim = False
+                    original_action_shape = (self.episode_len, 25)
+                    if sample_full_episode:
+                        start_ts = 0
+                    else:
+                        start_ts = np.random.choice(self.episode_len)
+                    # get observation at start_ts only
+                    self.checkSSD(dataset_path)
+                    qpos = root['/observations/qpos'][start_ts]
+                    self.checkSSD(dataset_path)
+                    qvel = root['/observations/qvel'][start_ts]
+                    image_dict = dict()
+                    for cam_name in self.camera_names:
+                        self.checkSSD(dataset_path)
+                        image_dict[cam_name] = root[f'/observations/images/{cam_name}'][start_ts]
+                    # get all actions after and including start_ts
+                    if is_sim:
+                        self.checkSSD(dataset_path)
+                        action = root['/action'][start_ts:]
+                        action_len = self.episode_len - start_ts
+                    else:
+                        self.checkSSD(dataset_path)
+                        action = root['/action'][max(0, start_ts - 1):self.episode_len] # hack, to make timesteps more aligned
+                        action_len = self.episode_len - max(0, start_ts - 1) # hack, to make timesteps more aligned
+
+        return is_sim, original_action_shape, action_len, action, image_dict, qpos
+
+    def checkSSD(self, datasetpath):
+        if not os.path.isfile(datasetpath):
+            print("SSD crashed")
+            while (not os.path.isfile(datasetpath)):
+                a = 0
+            print("SSD back")
 
 
 def get_norm_stats(dataset_dir, num_episodes, episode_length):

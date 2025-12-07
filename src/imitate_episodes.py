@@ -2,11 +2,13 @@ import torch
 import rclpy
 import numpy as np
 import os
+import sys
 import pickle
 import argparse
 import matplotlib.pyplot as plt
 from copy import deepcopy
 from tqdm import tqdm
+import termios
 from einops import rearrange
 
 from constants import DT
@@ -18,10 +20,103 @@ from policy import ACTPolicy, CNNMLPPolicy
 from visualize_episodes import save_videos
 
 from sim_env import BOX_POSE
+import time
 
 import IPython
 e = IPython.embed
 node = None
+
+# Windows
+if os.name == 'nt':
+    import msvcrt
+
+# Posix (Linux, OS X)
+else:
+    import sys
+    import termios
+    import atexit
+    from select import select
+
+
+class KBHit:
+
+    def __init__(self):
+        '''Creates a KBHit object that you can call to do various keyboard things.
+        '''
+
+        if os.name == 'nt':
+            pass
+
+        else:
+
+            # Save the terminal settings
+            self.fd = sys.stdin.fileno()
+            self.new_term = termios.tcgetattr(self.fd)
+            self.old_term = termios.tcgetattr(self.fd)
+
+            # New terminal setting unbuffered
+            self.new_term[3] = (self.new_term[3] & ~termios.ICANON & ~termios.ECHO)
+            termios.tcsetattr(self.fd, termios.TCSAFLUSH, self.new_term)
+
+            # Support normal-terminal reset at exit
+            atexit.register(self.set_normal_term)
+
+
+    def set_normal_term(self):
+        ''' Resets to normal terminal.  On Windows this is a no-op.
+        '''
+
+        if os.name == 'nt':
+            pass
+
+        else:
+            termios.tcsetattr(self.fd, termios.TCSAFLUSH, self.old_term)
+
+
+    def getch(self):
+        ''' Returns a keyboard character after kbhit() has been called.
+            Should not be called in the same program as getarrow().
+        '''
+
+        s = ''
+
+        if os.name == 'nt':
+            return msvcrt.getch().decode('utf-8')
+
+        else:
+            return sys.stdin.read(1)
+
+
+    def getarrow(self):
+        ''' Returns an arrow-key code after kbhit() has been called. Codes are
+        0 : up
+        1 : right
+        2 : down
+        3 : left
+        Should not be called in the same program as getch().
+        '''
+
+        if os.name == 'nt':
+            msvcrt.getch() # skip 0xE0
+            c = msvcrt.getch()
+            vals = [72, 77, 80, 75]
+
+        else:
+            c = sys.stdin.read(3)[2]
+            vals = [65, 67, 66, 68]
+
+        return vals.index(ord(c.decode('utf-8')))
+
+
+    def kbhit(self):
+        ''' Returns True if keyboard character was hit, False otherwise.
+        '''
+        if os.name == 'nt':
+            return msvcrt.kbhit()
+
+        else:
+            dr,dw,de = select([sys.stdin], [], [], 0)
+            return dr != []
 
 def main(args):
     set_seed(1)
@@ -45,9 +140,12 @@ def main(args):
     #     from aloha_scripts.constants import TASK_CONFIGS
     #     task_config = TASK_CONFIGS[task_name]
     dataset_dir = "./dataset"
-    num_episodes = 70
-    episode_len = 130
-    camera_names = ["realsense_image_raw", "realsense_image_depth", "digit360_image_0", "digit_rgb_image_0", "digit_rgb_image_1", "digit_rgb_image_2"]
+    dataset_dir = "/media/niklas/T9/data_master_thesis/hdf5/25_11_29_data_collection_digit/"
+    num_episodes = 196
+    episode_len = 150
+    # camera_names = ["realsense_image_raw", "realsense_image_depth", "digit360_image_0", "digit_rgb_image_0", "digit_rgb_image_1", "digit_rgb_image_2"]
+    # camera_names = ["realsense_image_raw", "realsense_image_depth", "digit_rgb_image_0", "digit_rgb_image_1", "digit_rgb_image_2", "digit_rgb_image_3"]
+    camera_names = ["realsense_image_raw", "realsense_image_depth"]
 
     # fixed parameters
     state_dim = 25
@@ -153,6 +251,7 @@ def get_image(ts, camera_names):
 
 def eval_bc(config, ckpt_name, save_episode=True):
     set_seed(1000)
+    kb = KBHit()
     ckpt_dir = config['ckpt_dir']
     state_dim = config['state_dim']
     real_robot = config['real_robot']
@@ -163,6 +262,7 @@ def eval_bc(config, ckpt_name, save_episode=True):
     max_timesteps = config['episode_len']
     task_name = config['task_name']
     temporal_agg = config['temporal_agg']
+    print(temporal_agg)
     onscreen_cam = 'angle'
 
     # load policy and stats
@@ -200,11 +300,19 @@ def eval_bc(config, ckpt_name, save_episode=True):
 
     max_timesteps = int(max_timesteps * 1) # may increase for real-world tasks
 
-    num_rollouts = 50
+    num_rollouts = 2000
     episode_returns = []
     highest_rewards = []
-    for rollout_id in range(num_rollouts):
-        rollout_id += 0
+    rollout_id = 0
+    env.reset_robot()
+    time.sleep(3)
+
+    while rollout_id < num_rollouts:
+        if kb.kbhit():
+            c = kb.getch()
+            if ord(c) == 27: # ESC
+                kb.set_normal_term()
+                rollout_id = num_rollouts
         ### set task
         if 'sim_transfer_cube' in task_name:
             BOX_POSE[0] = sample_box_pose() # used in sim reset
@@ -229,12 +337,13 @@ def eval_bc(config, ckpt_name, save_episode=True):
         target_qpos_list = []
         rewards = []
         with torch.inference_mode():
-            for t in range(max_timesteps):
+            for t in range(1):
                 ### update onscreen render and wait for DT
                 if onscreen_render:
                     image = env._physics.render(height=480, width=640, camera_id=onscreen_cam)
                     plt_img.set_data(image)
                     plt.pause(DT)
+                    
 
                 ### process previous timestep to get qpos and image_list
                 obs = ts.observation
@@ -297,6 +406,7 @@ def eval_bc(config, ckpt_name, save_episode=True):
         episode_highest_reward = np.max(rewards)
         highest_rewards.append(episode_highest_reward)
         print(f'Rollout {rollout_id}\n{episode_return=}, {episode_highest_reward=}, {env_max_reward=}, Success: {episode_highest_reward==env_max_reward}')
+        rollout_id += 1
         rclpy.spin_once(node)
 
         # if save_episode:
@@ -319,6 +429,8 @@ def eval_bc(config, ckpt_name, save_episode=True):
         f.write(repr(episode_returns))
         f.write('\n\n')
         f.write(repr(highest_rewards))
+
+    env.reset_robot()
 
     return success_rate, avg_return
 

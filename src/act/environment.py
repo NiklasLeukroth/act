@@ -96,9 +96,10 @@ class RealEnv:
 
     def get_images(self):
         digit_dict = self.digit_recorder.get_images()
-        digit_360_dict = self.digit_360_recorder.get_images()
+        # digit_360_dict = self.digit_360_recorder.get_images()
         camera_dict = self.camera_recorder.get_images()
-        out = digit_dict | digit_360_dict | camera_dict
+        # out = digit_dict | digit_360_dict | camera_dict
+        out = digit_dict | camera_dict
         return out
 
     def _move_hand(self, desired_action):
@@ -121,11 +122,25 @@ class RealEnv:
 
     def _reset_arm(self):
         # Implement resetting the arm here
-        pass
+        out = XArmCommand()
+        out.pos_x = 500.0
+        out.pos_y = 0.0
+        out.pos_z = 300.0
+        out.rot_x = 3.13966666
+        out.rot_y = -1.570803
+        out.rot_z = 0.0
+        out.speed = 100.0
+        out.acc = 500.0
+        out.mvtime = 0.0
+        self.arm_publisher.publish(out)
 
     def _reset_hand(self):
-        # Implement resetting the hand here
-        pass 
+        desired_action = [0.0, 0.0, 60.0, 30.0]
+        for i in range(12):
+            desired_action.append(0.0)
+        out = Float64MultiArray()
+        out.data = desired_action
+        self.hand_publisher.publish(out)
 
     def get_observation(self):
         obs = collections.OrderedDict()
@@ -144,14 +159,17 @@ class RealEnv:
         return 0
 
     def reset(self):
-        self._reset_hand()
-        self._reset_arm()
 
         return dm_env.TimeStep(
             step_type=dm_env.StepType.FIRST,
             reward=self.get_reward(),
             discount=None,
             observation=self.get_observation())
+    
+    def reset_robot(self):
+        self._reset_hand()
+        self._reset_arm()
+
 
     def step(self, action):
         # Implement moving the robot here
