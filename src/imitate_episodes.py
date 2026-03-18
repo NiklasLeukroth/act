@@ -144,8 +144,8 @@ def main(args):
     num_episodes = 196
     episode_len = 150
     # camera_names = ["realsense_image_raw", "realsense_image_depth", "digit360_image_0", "digit_rgb_image_0", "digit_rgb_image_1", "digit_rgb_image_2"]
-    # camera_names = ["realsense_image_raw", "realsense_image_depth", "digit_rgb_image_0", "digit_rgb_image_1", "digit_rgb_image_2", "digit_rgb_image_3"]
-    camera_names = ["realsense_image_raw", "realsense_image_depth"]
+    camera_names = ["realsense_image_raw", "realsense_image_depth", "digit_rgb_image_0", "digit_rgb_image_1", "digit_rgb_image_2", "digit_rgb_image_3"]
+    # camera_names = ["realsense_image_raw", "realsense_image_depth"]
 
     # fixed parameters
     state_dim = 25
@@ -298,13 +298,14 @@ def eval_bc(config, ckpt_name, save_episode=True):
         query_frequency = 1
         num_queries = policy_config['num_queries']
 
-    max_timesteps = int(max_timesteps * 1) # may increase for real-world tasks
+    max_timesteps = int(max_timesteps * 6) # may increase for real-world tasks
 
     num_rollouts = 2000
     episode_returns = []
     highest_rewards = []
     rollout_id = 0
     env.reset_robot()
+    rclpy.spin_once(node)
     time.sleep(3)
 
     while rollout_id < num_rollouts:
@@ -313,6 +314,7 @@ def eval_bc(config, ckpt_name, save_episode=True):
             if ord(c) == 27: # ESC
                 kb.set_normal_term()
                 rollout_id = num_rollouts
+                # env.reset_robot()
         ### set task
         if 'sim_transfer_cube' in task_name:
             BOX_POSE[0] = sample_box_pose() # used in sim reset
@@ -337,7 +339,17 @@ def eval_bc(config, ckpt_name, save_episode=True):
         target_qpos_list = []
         rewards = []
         with torch.inference_mode():
-            for t in range(1):
+            t = 0
+            while t < 1:
+            # while t < max_timesteps:
+                # if kb.kbhit():
+                #     c = kb.getch()
+                #     if ord(c) == 27: # ESC
+                #         kb.set_normal_term()
+                #         t = max_timesteps
+                #         env.reset_robot()
+                # if t % 100 == 0:
+                #     print(t)
                 ### update onscreen render and wait for DT
                 if onscreen_render:
                     image = env._physics.render(height=480, width=640, camera_id=onscreen_cam)
@@ -393,6 +405,9 @@ def eval_bc(config, ckpt_name, save_episode=True):
                 qpos_list.append(qpos_numpy)
                 target_qpos_list.append(target_qpos)
                 rewards.append(ts.reward)
+                # rclpy.spin_once(node)
+
+                t += 1
 
             plt.close()
         if real_robot:
