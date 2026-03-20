@@ -2,6 +2,8 @@ import numpy as np
 import torch
 import os
 import h5py
+import sys
+import hdf5plugin
 from torch.utils.data import TensorDataset, DataLoader
 
 import IPython
@@ -74,7 +76,8 @@ class EpisodicDataset(torch.utils.data.Dataset):
         return image_data, qpos_data, action_data, is_pad
     
     def loadblub(self, dataset_path, sample_full_episode):
-        self.checkSSD(dataset_path)
+
+        # self.checkSSD(dataset_path)
         with h5py.File(dataset_path, 'r') as root:
                     # is_sim = root.attrs['sim']
                     is_sim = False
@@ -84,21 +87,21 @@ class EpisodicDataset(torch.utils.data.Dataset):
                     else:
                         start_ts = np.random.choice(self.episode_len)
                     # get observation at start_ts only
-                    self.checkSSD(dataset_path)
+                    # self.checkSSD(dataset_path)
                     qpos = root['/observations/qpos'][start_ts]
-                    self.checkSSD(dataset_path)
+                    # self.checkSSD(dataset_path)
                     qvel = root['/observations/qvel'][start_ts]
                     image_dict = dict()
                     for cam_name in self.camera_names:
-                        self.checkSSD(dataset_path)
+                        # self.checkSSD(dataset_path)
                         image_dict[cam_name] = root[f'/observations/images/{cam_name}'][start_ts]
                     # get all actions after and including start_ts
                     if is_sim:
-                        self.checkSSD(dataset_path)
+                        # self.checkSSD(dataset_path)
                         action = root['/action'][start_ts:]
                         action_len = self.episode_len - start_ts
                     else:
-                        self.checkSSD(dataset_path)
+                        # self.checkSSD(dataset_path)
                         action = root['/action'][max(0, start_ts - 1):self.episode_len] # hack, to make timesteps more aligned
                         action_len = self.episode_len - max(0, start_ts - 1) # hack, to make timesteps more aligned
 

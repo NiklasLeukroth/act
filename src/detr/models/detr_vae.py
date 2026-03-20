@@ -7,12 +7,15 @@ from torch import nn
 from torch.autograd import Variable
 from .backbone import build_backbone
 from .transformer import build_transformer, TransformerEncoder, TransformerEncoderLayer
+from torchvision import transforms
+from PIL import Image as PILImage
 
 import numpy as np
 
 import IPython
 e = IPython.embed
 second_dimension = 25
+visCounter = 0
 
 
 def reparametrize(mu, logvar):
@@ -83,6 +86,7 @@ class DETRVAE(nn.Module):
         env_state: None
         actions: batch, seq, action_dim
         """
+        global visCounter
         is_training = actions is not None # train or val
         bs, _ = qpos.shape
         ### Obtain latent z from action sequence
@@ -140,6 +144,53 @@ class DETRVAE(nn.Module):
             hs = self.transformer(transformer_input, None, self.query_embed.weight, self.pos.weight)[0]
         a_hat = self.action_head(hs)
         is_pad_hat = self.is_pad_head(hs)
+        # we will save the conv layer weights in this list
+        model_weights =[]
+        #we will save the 49 conv layers in this list
+        conv_layers = []# get all the model children as list
+        model_children = list(self.backbones[0][0].get_backbone().children())#counter to keep count of the conv layers
+        counter = 0#append all the conv layers and their respective wights to the list
+        for i in range(len(model_children)):
+            if type(model_children[i]) == nn.Conv2d:
+                counter+=1
+                model_weights.append(model_children[i].weight)
+                conv_layers.append(model_children[i])
+            elif type(model_children[i]) == nn.Sequential:
+                for j in range(len(model_children[i])):
+                    for child in model_children[i][j].children():
+                        if type(child) == nn.Conv2d:
+                            counter+=1
+                            model_weights.append(child.weight)
+                            conv_layers.append(child)
+
+
+        transform = transforms.Compose([
+        transforms.Resize((480, 848)),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=0., std=1.)
+])
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        model = self.backbones[0][0].get_backbone().to(device)
+
+        visimage = image[0][0].detach().cpu().numpy()
+        # print(f"Image shape: {visimage.shape}")
+        visimage = PILImage.fromarray(visimage.reshape(848, 480, 3), 'RGB')
+        image = image.to(device)
+        if (visCounter % 1000 == 0):
+            # visimage.show()
+            pass
+        visCounter += 1
+
+
+        # outputs = []
+        # names = []
+        # for layer in conv_layers[0:]:
+        #     visimage = layer(image)
+        #     outputs.append(visimage)
+        #     names.append(str(layer))
+        # print(len(outputs))#print feature_maps
+        # for feature_map in outputs:
+        #     print(feature_map.shape)
         return a_hat, is_pad_hat, [mu, logvar]
 
 
@@ -198,6 +249,7 @@ class CNNMLP(nn.Module):
         flattened_features = torch.cat(flattened_features, axis=1) # 768 each
         features = torch.cat([flattened_features, qpos], axis=1) # qpos: 14
         a_hat = self.mlp(features)
+        print(a_hat)
         return a_hat
 
 
@@ -237,8 +289,11 @@ def build(args):
     # backbone = None # from state for now, no need for conv nets
     # From image
     backbones = []
-    backbone = build_backbone(args)
-    backbones.append(backbone)
+    # backbone = build_backbone(args)
+    # backbones.append(backbone)
+    for _ in args.camera_names:
+        backbone = build_backbone(args)
+        backbones.append(backbone)
 
     transformer = build_transformer(args)
 

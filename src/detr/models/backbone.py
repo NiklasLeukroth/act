@@ -3,7 +3,9 @@
 Backbone modules.
 """
 import sys
-sys.path.append("/home/niklas/master_ws/src/act/src/detr")
+import getpass
+
+sys.path.append(f"/home/{getpass.getuser()}/master_ws/src/act/src/detr")
 from collections import OrderedDict
 
 import torch
@@ -71,6 +73,7 @@ class BackboneBase(nn.Module):
         else:
             return_layers = {'layer4': "0"}
         self.body = IntermediateLayerGetter(backbone, return_layers=return_layers)
+        self.backbone = backbone
         self.num_channels = num_channels
 
     def forward(self, tensor):
@@ -83,6 +86,9 @@ class BackboneBase(nn.Module):
         #     mask = F.interpolate(m[None].float(), size=x.shape[-2:]).to(torch.bool)[0]
         #     out[name] = NestedTensor(x, mask)
         # return out
+
+    def get_backbone(self):
+        return self.backbone
 
 
 class Backbone(BackboneBase):

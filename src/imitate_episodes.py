@@ -140,12 +140,14 @@ def main(args):
     #     from aloha_scripts.constants import TASK_CONFIGS
     #     task_config = TASK_CONFIGS[task_name]
     dataset_dir = "./dataset"
-    dataset_dir = "/media/niklas/T9/data_master_thesis/hdf5/25_11_29_data_collection_digit/"
+    dataset_dir = "/media/niklas/T9/data_master_thesis/hdf5/25_11_29_fixed/"
+    # dataset_dir = "/media/niklas/T9/data_master_thesis/hdf5/25_11_29_data_collection_digit/"
+    # dataset_dir = "/media/niklas/T9/small/"
     num_episodes = 196
     episode_len = 150
     # camera_names = ["realsense_image_raw", "realsense_image_depth", "digit360_image_0", "digit_rgb_image_0", "digit_rgb_image_1", "digit_rgb_image_2"]
     camera_names = ["realsense_image_raw", "realsense_image_depth", "digit_rgb_image_0", "digit_rgb_image_1", "digit_rgb_image_2", "digit_rgb_image_3"]
-    # camera_names = ["realsense_image_raw", "realsense_image_depth"]
+    # camera_names = ["realsense_image_raw", "realsense_image_depth", "digit_rgb_image_0"]
 
     # fixed parameters
     state_dim = 25
